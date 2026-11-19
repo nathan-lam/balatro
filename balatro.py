@@ -1,4 +1,3 @@
-import eval7, pprint
 import numpy as np
 from scipy.special import comb, factorial
 from scipy.stats import hypergeom
@@ -16,7 +15,6 @@ class Balatro:
     NUM_RANKS = 13
     NUM_SUITS = 4
     RANKS = np.array(["K", "A", "2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q"])
-
     SUITS = np.array(["C", "H", "S", "D"])
 
     def __init__(self, num_simulations, num_decks=1, seed=None, verbose=False):
@@ -36,7 +34,7 @@ class Balatro:
         self.hand_size = 8
         self.num_hands = 4
         self.num_discards = 3
-        self.chips = { # (chip, mult)
+        self.chips_mult = { # (chip, mult)
             "Flush Five": [160, 16],
             "Flush House": [140, 14],
             "Five of a Kind": [120, 12],
@@ -52,6 +50,7 @@ class Balatro:
         }
 
         # Poker References
+        self.poker_hands = np.array(list(self.chips.keys()))
         self.straight_references = np.array(
             [np.arange(1+i,i+6) for i in range(8)] + 
             [[9, 10, 11, 12, 0],[10, 11, 12, 0, 1]])
@@ -123,12 +122,36 @@ class Balatro:
         rank_count = ((current_hand[:, :, None] % 13) == np.arange(self.NUM_RANKS)).sum(axis=1) # shape: (num_simulations, NUM_RANKS)
         suit_count = ((current_hand[:, :, None] % 4) == np.arange(self.NUM_SUITS)).sum(axis=1) # shape: (num_simulations, NUM_SUITS)
         
+        poker_hand = {
+            "Flush Five": self.has_flush_five(rank_count=rank_count, suit_count=suit_count),
+            "Flush House": self.has_flush_house(rank_count=rank_count, suit_count=suit_count),
+            "Five of a Kind": self.has_5_of_a_kind(rank_count=rank_count),
+            "Straight Flush": self.has_straight_flush(rank_count=rank_count, suit_count=suit_count),
+            "Four of a Kind": self.has_4_of_a_kind(rank_count=rank_count),
+            "Full House": self.has_full_house(rank_count=rank_count),
+            "Flush": self.has_flush(suit_count=suit_count),
+            "Straight": self.has_straight(rank_count=rank_count),
+            "Three of a Kind": self.has_3_of_a_kind(rank_count=rank_count),
+            "Two Pair": self.has_two_pair(rank_count=rank_count),
+            "Pair": self.has_2_of_a_kind(rank_count=rank_count),
+            "High Card": self.has_high_card(rank_count=rank_count, suit_count=suit_count)
+        }
+
+        poker_hand_arr = np.array(list(poker_hand.values()))
+        chosen_poker_hands = self.poker_hands[poker_hand_arr.argmax(axis=0)]
         return rank_count, suit_count
 
 
-    def get_score(self, hand):
-        pass
-
+    def get_score(self, hand, hand_type):
+        if len(hand) != 5:
+            raise ValueError("Received invalid number of cards. Expected 5 cards to score a hand.")
+        hand_ranks = hand % 13
+        hand_ranks_face_corrected = np.where(np.logical_or(current_hand % 13 == 0, current_hand % 13> 10), 10 ,current_hand % 13) # J,Q,K are valued as 10
+        hand_ranks_ace_corrected = np.where(hand_ranks_face_corrected == 1, 11, hand_ranks_face_corrected) # A are valued as 11
+        hand_rank_sum = hand_ranks.sum()
+        chips, mult = self.chips_mult[hand_type]
+        score = (hand_rank_sum + chips) * mult
+        return score
 
     def has_n_of_a_kind(self, rank_count, n):
         """
@@ -145,17 +168,18 @@ class Balatro:
         is_n_of_a_kind = (rank_count >= n).any(axis=1)
         return is_n_of_a_kind
 
-    def has_flush_five(self, rankd_count, suit_count):
+    def has_flush_five(self, rank_count, suit_count):
         """
         Checks if array of hands each has a flush house
 
         Args:
             rank_count (np.array): Array of rank counts. Shape: (num_simulations, NUM_RANKS)
+            suit_count (np.array): Array of suit counts. Shape: (num_simulations, NUM_SUITS)
         Returns:
             is_flush_house (np.array): Bool array if each simulation is a flush house. Shape: (num_simulations,)
         """
         is_flush = self.has_flush(suit_count=suit_count)
-        is_5_of_a_kind = self.has_5_of_a_kind(rank_count=rankd_count)
+        is_5_of_a_kind = self.has_5_of_a_kind(rank_count=rank_count)
         is_flush_five = is_flush & is_5_of_a_kind
         return is_flush_five
         
@@ -308,7 +332,7 @@ class Balatro:
 
 def main():
 
-    B = Balatro(10, seed=123, verbose=True)
+    B = Balatro(5, seed=123, verbose=True)
     B.simulate_one_round()
 
     print()
