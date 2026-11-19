@@ -215,6 +215,7 @@ class Balatro:
     def has_full_house(self, rank_count):
         """
         Checks if array of hands each has a full house
+        This relies on two pair returning true as a subset of a full house
 
         Args:
             rank_count (np.array): Array of rank counts. Shape: (num_simulations, NUM_RANKS)
@@ -272,8 +273,8 @@ class Balatro:
         Returns:
             is_two_pair (np.array): Bool array if each simulation is a two_pair. Shape: (num_simulations,)
         """
-        has_at_least_two_pairs = (rank_count >= 2).sum(axis=1) # Has at least 2 count. Shape: (num_simulations,)
-        is_two_pair = has_at_least_two_pairs >= 2 # Has at least 2 pairs
+        has_at_least_two_ranks = (rank_count >= 2).sum(axis=1) # Has at least 2 ranks. Shape: (num_simulations,)
+        is_two_pair = has_at_least_two_ranks >= 2 # Has at least 2 ranks that have pairs
         return is_two_pair
 
     def has_2_of_a_kind(self, rank_count):
@@ -291,6 +292,7 @@ class Balatro:
     def has_high_card(self, rank_count, suit_count):
         """
         Checks if array of hands each has a high card
+        #TODO: change to always return true? depends on the hierarchy of hands
 
         Args:
             rank_count (np.array): Array of rank counts. Shape: (num_simulations, NUM_RANKS)
