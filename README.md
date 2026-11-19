@@ -23,7 +23,7 @@ Things I want to do but not sure how they could be done at the moment
 - [ ] Make a strategy function that optimally plays the game
     - [ ] Implement a likelihood strategy to determine which cards to discard
     - [ ] See if i could sample cards to estimate which cards to discard.
-        - Some for of importance sampling?
+        - Some form of importance sampling?
     - [ ] Make a neural network that learns to play the game?
 - [ ] Test if my simulation can resolve whether a wild card should pick 3 of a kind vs 2 pair 
     - See this [video](https://youtu.be/eVnPbA0QUec?t=184) for some more context

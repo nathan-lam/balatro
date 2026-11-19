@@ -147,10 +147,33 @@ class Balatro:
         return is_n_of_a_kind
 
     def has_flush_five(self, rankd_count, suit_count):
-        pass
+        """
+        Checks if array of hands each has a flush house
 
+        Args:
+            rank_count (np.array): Array of rank counts. Shape: (num_simulations, NUM_RANKS)
+        Returns:
+            is_flush_house (np.array): Bool array if each simulation is a flush house. Shape: (num_simulations,)
+        """
+        is_flush = self.has_flush(suit_count=suit_count)
+        is_5_of_a_kind = self.has_5_of_a_kind(rank_count=rankd_count)
+        is_flush_five = is_flush & is_5_of_a_kind
+        return is_flush_five
+
+        
     def has_flush_house(self, rank_count, suit_count):
-        pass
+        """
+        Checks if array of hands each has a flush house
+
+        Args:
+            rank_count (np.array): Array of rank counts. Shape: (num_simulations, NUM_RANKS)
+        Returns:
+            is_flush_house (np.array): Bool array if each simulation is a flush house. Shape: (num_simulations,)
+        """
+        is_flush = self.has_flush(suit_count=suit_count)
+        is_full_house = self.has_full_house(rank_count=rank_count)
+        is_flush_house = is_flush & is_full_house
+        return is_flush_house
 
     def has_5_of_a_kind(self, rank_count):
         """
