@@ -17,23 +17,29 @@ class Balatro:
     RANKS = np.array(["K", "A", "2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q"])
     SUITS = np.array(["C", "H", "S", "D"])
 
-    def __init__(self, num_simulations, num_decks=1, seed=None, verbose=False):
+    def __init__(self, num_simulations, num_decks=1, decision_func=None, seed=None, verbose=False):
         # init
         self.num_simulations = num_simulations
         self.num_decks = num_decks
+        self.decision_func = decision_func # How cards are chosen
         self.seed = seed
         self.verbose = verbose
+
+        if self.seed and self.verbose:
+            print(f"Using seed={self.seed}")
+        self.rng = np.random.default_rng(seed=self.seed)
 
         # Deck setup
         self.deck = np.arange(52*self.num_decks) % 52
         self.deck_arr = np.asarray(self.deck)
+        self.seen_cards = np.tile(self.deck_arr, (self.num_simulations, 52))
         self.rank_arr = self.deck_arr % self.NUM_RANKS
         self.suit_arr = self.deck_arr % self.NUM_SUITS
 
         # Default Balatro rules
-        self.hand_size = 8
-        self.num_hands = 4
-        self.num_discards = 3
+        self.max_hand_size = 8
+        self.max_num_hands = 4
+        self.max_num_discards = 3
         self.chips_mult = { # (chip, mult)
             "Flush Five": [160, 16],
             "Flush House": [140, 14],
@@ -50,7 +56,7 @@ class Balatro:
         }
 
         # Poker References
-        self.poker_hands = np.array(list(self.chips.keys()))
+        self.poker_hands = np.array(list(self.chips_mult.keys()))
         self.straight_references = np.array(
             [np.arange(1+i,i+6) for i in range(8)] + 
             [[9, 10, 11, 12, 0],[10, 11, 12, 0, 1]])
@@ -63,40 +69,43 @@ class Balatro:
         Returns:
             shuffled_deck (np.array): Array of shuffled cards. Shape: (num_simulations, shuffled cards in self.deck)
         """
-        if self.seed and self.verbose:
-            print(f"Using seed={self.seed}")
-        rng = np.random.default_rng(seed=self.seed)
-        shuffled_deck = np.array([rng.permutation(self.deck_arr) for _ in range(self.num_simulations)]) # Shape: (num_simulations, cards in deck)
-
+        shuffled_deck = np.array([self.rng.permutation(self.deck_arr) for _ in range(self.num_simulations)]) # Shape: (num_simulations, cards in deck)
         return shuffled_deck
 
-
     def simulate_one_round(self):
+        """
+        Simulates one round of Balatro
+        """
         
-        starting_hand_idx = np.tile(np.arange(self.hand_size), (self.num_simulations,1)) # ith row says which card index to grab. Shape: (num_simulations, self.hand_size)
+        starting_hand_idx = np.tile(np.arange(self.max_hand_size), (self.num_simulations,1)) # ith row says which card index to grab per simulation. Shape: (num_simulations, self.max_hand_size)
         shuffled_deck = self.get_shuffled_deck()
-        for hand in range(self.num_hands):
-            current_hand = shuffled_deck[np.arange(self.num_simulations)[:,None],starting_hand_idx]
+        total_score = np.zeros(self.num_simulations)
+        current_hand = shuffled_deck[np.arange(self.num_simulations)[:,None],starting_hand_idx]
+        is_done = np.repeat(False, self.num_simulations)
+        current_hand = 0
+        while ~np.all(is_done):
             if self.verbose:
-                print(f"Hand {hand}")
+                print(f"Hand {current_hand}")
                 print(self.print_hand(current_hand, sort=True))
-            
-            self.hand_eval(current_hand)
-            
-            pass
+            # 1. evaluate hand whether to play hand or discard
+            game_state = self.hand_eval(current_hand)
 
-        score = self.get_score()
 
-        return score
+            # 2. score or draw cards to restore hand
+            score_arr = self.get_score(current_hand, hand_type=None)
+            total_score += score_arr * game_state["score_hand"].astype(int)
+            current_hand += 1
+
+        return total_score
     
     def print_hand(self, hand_matrix, sort=False):
         """
         Integer encoding to human readable str
 
         Args:
-            hand_matrix (np.array): Array of int. Size: (num_simulations, self.hand_size)
+            hand_matrix (np.array): Array of int. Size: (num_simulations, self.max_hand_size)
         Returns:
-            hands_str (np.array): Array of str. Size: (num_simulations, self.hand_size)
+            hands_str (np.array): Array of str. Size: (num_simulations, self.max_hand_size)
         """
         idx_of_ranks_in_hand = hand_matrix % 13
         ranks_in_hand = self.RANKS[idx_of_ranks_in_hand]
@@ -105,7 +114,6 @@ class Balatro:
         suits_in_hand = self.SUITS[idx_of_suits_in_hand]
         
         hands_str = np.char.add(ranks_in_hand, suits_in_hand)
-
         if sort:
             hands_str = np.sort(hands_str)
 
@@ -116,7 +124,12 @@ class Balatro:
         Evaluate the hand
 
         Args:
-            current_hand (np.array): Array of cards in hand. Shape: (num_simulations, self.hand_size)
+            current_hand (np.array): Array of cards in hand. Shape: (num_simulations, self.max_hand_size)
+        Returns:
+            game_state (dict):
+                - score_hand (np.array): Bool array if True, hand will play best poker hand available to be score. Otherwise, do not score
+                - cards_kept (list): list of cards kept in hand per simulation. 
+                - poker_hand_estimates (np.array): Array of  
         """
         # Slicing [:, :, None] compares each element with the arange
         rank_count = ((current_hand[:, :, None] % 13) == np.arange(self.NUM_RANKS)).sum(axis=1) # shape: (num_simulations, NUM_RANKS)
@@ -139,19 +152,61 @@ class Balatro:
 
         poker_hand_arr = np.array(list(poker_hand.values()))
         chosen_poker_hands = self.poker_hands[poker_hand_arr.argmax(axis=0)]
-        return rank_count, suit_count
+        game_state = self.decision(current_hand, strategy="one_hand")
+        return game_state
 
 
-    def get_score(self, hand, hand_type):
+    def get_score(self, hand, poker_hand):
+        """
+        Scores chosen hand and poker_hand
+
+        Args:
+            hand (np.array): Array of cards in hand. Shape: (num_simulations, 5)
+            poker_hand (np.array): Array of poker hand str. Shape: (num_simulations,)
+        returns:
+            score_arr (np.array): Array of int score. Shape: (num_simulations,)
+        """
         if len(hand) != 5:
             raise ValueError("Received invalid number of cards. Expected 5 cards to score a hand.")
         hand_ranks = hand % 13
-        hand_ranks_face_corrected = np.where(np.logical_or(current_hand % 13 == 0, current_hand % 13> 10), 10 ,current_hand % 13) # J,Q,K are valued as 10
+        hand_ranks_face_corrected = np.where(np.logical_or(current_hand % 13 == 0, current_hand % 13 > 10), 10 ,current_hand % 13) # J,Q,K are valued as 10
         hand_ranks_ace_corrected = np.where(hand_ranks_face_corrected == 1, 11, hand_ranks_face_corrected) # A are valued as 11
         hand_rank_sum = hand_ranks.sum()
-        chips, mult = self.chips_mult[hand_type]
-        score = (hand_rank_sum + chips) * mult
-        return score
+        chips, mult = self.chips_mult[poker_hand]
+        score_arr = (hand_rank_sum + chips) * mult
+        return score_arr
+
+    def decision(self, strategy):
+        """
+        Function that chooses how to handle cards
+
+        Args:
+            current_hand (np.array): Array of cards in hand. Shape: (num_simulations, self.max_hand_size)
+            strategy (str): String indicating how to handle cards.
+        Returns:
+            game_state (dict): Dict of gamestate 
+        """
+        valid_strategies = ["one_hand", "random"]
+        game_state = {}
+        
+        if strategy == "one_hand":
+            # Play only one hand to be scored.
+            score_hand_arr = np.repeat(True, self.num_simulations)
+            cards_kept = current_hand
+
+        elif strategy == "random":
+            # No evaluation, randomly pick cards to discard
+            score_hand_arr = np.repeat(False, num_simulations)
+            cards_kept = self.rng.choice(current_hand, size=(self.num_simulations, 5), replace=False, axis=1)
+
+        else:
+            raise ValueError(f"Unrecognized strategy. Expected {valid_strategies} but received strategy")
+
+        game_state = {
+            "score_hand": score_hand_arr,
+            "cards_kept": cards_kept,
+        }
+        return game_state
 
     def has_n_of_a_kind(self, rank_count, n):
         """
@@ -332,7 +387,7 @@ class Balatro:
 
 def main():
 
-    B = Balatro(5, seed=123, verbose=True)
+    B = Balatro(2, seed=123, verbose=True)
     B.simulate_one_round()
 
     print()
