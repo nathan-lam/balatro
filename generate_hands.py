@@ -1,7 +1,18 @@
-from itertools import combinations
+from itertools import product, combinations
 import numpy as np
 
+
+
 class Generate_hands:
+    NUM_RANKS = 13
+    NUM_SUITS = 4
+    ranks_13_choose_5 = list(combinations(range(NUM_RANKS),5))
+    ranks_13_choose_2 = list(combinations(range(NUM_RANKS),2))
+    ranks_13_choose_1 = list(combinations(range(NUM_RANKS),1))
+    suits_4_choose_3 = list(combinations(range(NUM_SUITS),3))
+    suits_4_choose_2 = list(combinations(range(NUM_SUITS),2))
+    suits_4_choose_1 = list(combinations(range(NUM_SUITS),1))
+
     def __init__(self):
         pass
 
@@ -61,14 +72,31 @@ class Generate_hands:
         """
         (13 choose 2) * (4 choose 2) * (4 choose 2) = 2808 combinations
         """ 
-        pass
+        output = np.empty((2808, 4))
+        rank_combinations = self.ranks_13_choose_2
+        suit_combinations = self.suits_4_choose_2
+        for i, ((rank1, rank2), (first_suit1, first_suit2), (second_suits1, second_suits2)) in enumerate(product(rank_combinations, suit_combinations, suit_combinations)):
+            output[i] = np.array([
+                rank1 + 4*first_suit1, rank1 + 4*first_suit2,
+                rank2 + 4*second_suits1, rank2 + 4*second_suits2,
+            ], dtype=int)
+        return output
 
     def generate_2_of_a_kind(self):
         """
         13 * (4 choose 2) = 78 combinations
         """
         output = np.empty((78, 2))
-        for i, (value, suits) in enumerate(product(range(13), np.array(list(combinations(range(4),2))))):
-            output[i] = value + 4*suits
+        rank_combinations = self.ranks_13_choose_1
+        suit_combinations = self.suits_4_choose_2
+        for i, ((rank,), (suit1, suit2)) in enumerate(product(rank_combinations, suit_combinations)):
+            output[i] = np.array([rank + 4*suit1, rank + 4*suit2], dtype=int)
         return output
 
+def main():
+    GH = Generate_hands()
+    print(GH.generate_two_pairs().tolist())
+    print()
+
+if __name__ == "__main__":
+    main()
