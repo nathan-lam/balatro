@@ -289,7 +289,7 @@ class Balatro:
         is_2_of_a_kind = self.has_n_of_a_kind(rank_count=rank_count, n=2)
         return is_2_of_a_kind
 
-    def has_high_card(self, rank_count, suit_count):
+    def has_high_card(self, rank_count=None, suit_count=None):
         """
         Checks if array of hands each has a high card
         #TODO: change to always return true? depends on the hierarchy of hands
@@ -299,10 +299,11 @@ class Balatro:
         Returns:
             is_high_card (np.array): Bool array if each simulation is a high card. Shape: (num_simulations,)
         """    
-        at_most_1_count = (rank_count <= 1).all(axis=1)
-        is_not_flush = ~self.has_flush(suit_count=suit_count)
-        is_not_straight = ~self.has_straight(rank_count=rank_count)
-        is_high_card = at_most_1_count & is_not_straight
+        # at_most_1_count = (rank_count <= 1).all(axis=1)
+        # is_not_flush = ~self.has_flush(suit_count=suit_count)
+        # is_not_straight = ~self.has_straight(rank_count=rank_count)
+        # is_high_card = at_most_1_count & is_not_straight
+        is_high_card = np.tile(True, (self.num_simulations,)) # high card is a subset to all poker hands 
         return is_high_card
 
 def main():
