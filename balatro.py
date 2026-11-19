@@ -143,7 +143,6 @@ class Balatro:
         if n < 1:
             raise ValueError(f"n must be a positive integer. Received {n}")
         is_n_of_a_kind = (rank_count >= n).any(axis=1)
-
         return is_n_of_a_kind
 
     def has_flush_five(self, rankd_count, suit_count):
@@ -159,7 +158,6 @@ class Balatro:
         is_5_of_a_kind = self.has_5_of_a_kind(rank_count=rankd_count)
         is_flush_five = is_flush & is_5_of_a_kind
         return is_flush_five
-
         
     def has_flush_house(self, rank_count, suit_count):
         """
@@ -215,7 +213,18 @@ class Balatro:
         return is_4_of_a_kind
 
     def has_full_house(self, rank_count):
-        pass
+        """
+        Checks if array of hands each has a full house
+
+        Args:
+            rank_count (np.array): Array of rank counts. Shape: (num_simulations, NUM_RANKS)
+        Returns:
+            is_full_house (np.array): Bool array if each simulation is a full house. Shape: (num_simulations,)
+        """
+        is_3_of_a_kind = self.has_3_of_a_kind(rank_count=rank_count)
+        is_two_pair = self.has_two_pair(rank_count=rank_count)
+        is_full_house = is_3_of_a_kind & is_two_pair
+        return is_full_house
 
     def has_flush(self, suit_count):
         """
