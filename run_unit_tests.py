@@ -68,12 +68,121 @@ class TestBalatro(unittest.TestCase):
         self.assertListEqual(observed_output.tolist(), expected_output)
 
     def test_has_5_of_a_kind(self):
+
+        expected_output = [
+            False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False
+            True, True, True, True, True, True, True, True, True, True, 
+            ]
+
+        rank_count = np.array([
+            [0,0,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [1,0,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [1,1,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [1,1,1,0,0,0,0,0,0,0,0,0,0],  # False
+            [1,1,1,1,0,0,0,0,0,0,0,0,0],  # False
+            [1,1,1,1,1,0,0,0,0,0,0,0,0],  # False
+            [1,1,1,1,1,1,0,0,0,0,0,0,0],  # False
+            [1,1,1,1,1,1,1,0,0,0,0,0,0],  # False
+            [1,1,1,1,1,1,1,1,0,0,0,0,0],  # False
+            [1,1,1,1,1,1,1,1,1,0,0,0,0],  # False
+            [1,1,1,1,1,1,1,1,1,1,0,0,0],  # False
+            [1,1,1,1,1,1,1,1,1,1,1,0,0],  # False
+            [1,1,1,1,1,1,1,1,1,1,1,1,0],  # False
+            [1,1,1,1,1,1,1,1,1,1,1,1,1],  # False
+            [2,0,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [3,0,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [4,0,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [5,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [6,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [7,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [8,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [9,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [10,0,0,0,0,0,0,0,0,0,0,0,0], # True
+            [11,0,0,0,0,0,0,0,0,0,0,0,0], # True
+            [12,0,0,0,0,0,0,0,0,0,0,0,0], # True
+            [13,0,0,0,0,0,0,0,0,0,0,0,0], # True
+            [14,0,0,0,0,0,0,0,0,0,0,0,0], # True
+        ])
+
+        observed_output = Balatro(num_simulations=1).has_5_of_a_kind(rank_count=rank_count)
         self.assertListEqual(observed_output.tolist(), expected_output)
 
     def test_has_straight_flush(self):
+
+        expected_output = [
+            False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, 
+            True, True, True, True, True, True, True, True, True, True, True, 
+            ]
+
+        rank_count = np.array([
+            [0,0,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [1,0,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [1,1,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [1,1,1,0,0,0,0,0,0,0,0,0,0],  # False
+            [1,1,1,1,0,0,0,0,0,0,0,0,0],  # False
+            [1,1,1,1,1,0,0,0,0,0,0,0,0],  # False
+            [1,1,1,1,1,1,0,0,0,0,0,0,0],  # False
+            [1,1,1,1,1,1,1,0,0,0,0,0,0],  # False
+            [1,1,1,1,1,1,1,1,0,0,0,0,0],  # False
+            [1,1,1,1,1,1,1,1,1,0,0,0,0],  # False
+            [1,1,1,1,1,1,1,1,1,1,0,0,0],  # False
+            [1,1,1,1,1,1,1,1,1,1,1,0,0],  # False
+            [1,1,1,1,1,1,1,1,1,1,1,1,0],  # False
+            [1,1,1,1,1,1,1,1,1,1,1,1,1],  # False
+            [2,0,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [3,0,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [4,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [5,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [6,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [7,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [8,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [9,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [10,0,0,0,0,0,0,0,0,0,0,0,0], # True
+            [11,0,0,0,0,0,0,0,0,0,0,0,0], # True
+            [12,0,0,0,0,0,0,0,0,0,0,0,0], # True
+            [13,0,0,0,0,0,0,0,0,0,0,0,0], # True
+            [14,0,0,0,0,0,0,0,0,0,0,0,0], # True
+        ])
         self.assertListEqual(observed_output.tolist(), expected_output)
 
     def test_has_4_of_a_kind(self):
+
+        expected_output = [
+            False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, 
+            True, True, True, True, True, True, True, True, True, True, True, 
+            ]
+
+        rank_count = np.array([
+            [0,0,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [1,0,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [1,1,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [1,1,1,0,0,0,0,0,0,0,0,0,0],  # False
+            [1,1,1,1,0,0,0,0,0,0,0,0,0],  # False
+            [1,1,1,1,1,0,0,0,0,0,0,0,0],  # False
+            [1,1,1,1,1,1,0,0,0,0,0,0,0],  # False
+            [1,1,1,1,1,1,1,0,0,0,0,0,0],  # False
+            [1,1,1,1,1,1,1,1,0,0,0,0,0],  # False
+            [1,1,1,1,1,1,1,1,1,0,0,0,0],  # False
+            [1,1,1,1,1,1,1,1,1,1,0,0,0],  # False
+            [1,1,1,1,1,1,1,1,1,1,1,0,0],  # False
+            [1,1,1,1,1,1,1,1,1,1,1,1,0],  # False
+            [1,1,1,1,1,1,1,1,1,1,1,1,1],  # False
+            [2,0,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [3,0,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [4,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [5,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [6,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [7,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [8,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [9,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [10,0,0,0,0,0,0,0,0,0,0,0,0], # True
+            [11,0,0,0,0,0,0,0,0,0,0,0,0], # True
+            [12,0,0,0,0,0,0,0,0,0,0,0,0], # True
+            [13,0,0,0,0,0,0,0,0,0,0,0,0], # True
+            [14,0,0,0,0,0,0,0,0,0,0,0,0], # True
+        ])
+
+        observed_output = Balatro(num_simulations=1).has_4_of_a_kind(rank_count=rank_count)
         self.assertListEqual(observed_output.tolist(), expected_output)
 
     def test_has_full_house(self):
@@ -108,34 +217,93 @@ class TestBalatro(unittest.TestCase):
         self.assertListEqual(observed_output.tolist(), expected_output)
 
     def test_has_3_of_a_kind(self):
+
+        expected_output = [
+            False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, 
+            True, True, True, True, True, True, True, True, True, True, True, True, 
+            ]
+
+        rank_count = np.array([
+            [0,0,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [1,0,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [1,1,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [1,1,1,0,0,0,0,0,0,0,0,0,0],  # False
+            [1,1,1,1,0,0,0,0,0,0,0,0,0],  # False
+            [1,1,1,1,1,0,0,0,0,0,0,0,0],  # False
+            [1,1,1,1,1,1,0,0,0,0,0,0,0],  # False
+            [1,1,1,1,1,1,1,0,0,0,0,0,0],  # False
+            [1,1,1,1,1,1,1,1,0,0,0,0,0],  # False
+            [1,1,1,1,1,1,1,1,1,0,0,0,0],  # False
+            [1,1,1,1,1,1,1,1,1,1,0,0,0],  # False
+            [1,1,1,1,1,1,1,1,1,1,1,0,0],  # False
+            [1,1,1,1,1,1,1,1,1,1,1,1,0],  # False
+            [1,1,1,1,1,1,1,1,1,1,1,1,1],  # False
+            [2,0,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [3,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [4,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [5,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [6,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [7,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [8,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [9,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [10,0,0,0,0,0,0,0,0,0,0,0,0], # True
+            [11,0,0,0,0,0,0,0,0,0,0,0,0], # True
+            [12,0,0,0,0,0,0,0,0,0,0,0,0], # True
+            [13,0,0,0,0,0,0,0,0,0,0,0,0], # True
+            [14,0,0,0,0,0,0,0,0,0,0,0,0], # True
+        ])
+
+        observed_output = Balatro(num_simulations=1).has_3_of_a_kind(rank_count=rank_count)
         self.assertListEqual(observed_output.tolist(), expected_output)
 
     def test_has_two_pair(self):
         self.assertListEqual(observed_output.tolist(), expected_output)
 
     def test_has_2_of_a_kind(self):
+
+        expected_output = [
+            False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+            True, True, True, True, True, True, True, True, True, True, True, True, True,
+            ]
+
+        rank_count = np.array([
+            [0,0,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [1,0,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [1,1,0,0,0,0,0,0,0,0,0,0,0],  # False
+            [1,1,1,0,0,0,0,0,0,0,0,0,0],  # False
+            [1,1,1,1,0,0,0,0,0,0,0,0,0],  # False
+            [1,1,1,1,1,0,0,0,0,0,0,0,0],  # False
+            [1,1,1,1,1,1,0,0,0,0,0,0,0],  # False
+            [1,1,1,1,1,1,1,0,0,0,0,0,0],  # False
+            [1,1,1,1,1,1,1,1,0,0,0,0,0],  # False
+            [1,1,1,1,1,1,1,1,1,0,0,0,0],  # False
+            [1,1,1,1,1,1,1,1,1,1,0,0,0],  # False
+            [1,1,1,1,1,1,1,1,1,1,1,0,0],  # False
+            [1,1,1,1,1,1,1,1,1,1,1,1,0],  # False
+            [1,1,1,1,1,1,1,1,1,1,1,1,1],  # False
+            [2,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [3,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [4,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [5,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [6,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [7,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [8,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [9,0,0,0,0,0,0,0,0,0,0,0,0],  # True
+            [10,0,0,0,0,0,0,0,0,0,0,0,0], # True
+            [11,0,0,0,0,0,0,0,0,0,0,0,0], # True
+            [12,0,0,0,0,0,0,0,0,0,0,0,0], # True
+            [13,0,0,0,0,0,0,0,0,0,0,0,0], # True
+            [14,0,0,0,0,0,0,0,0,0,0,0,0], # True
+        ])
+
+        observed_output = Balatro(num_simulations=1).has_2_of_a_kind(rank_count=rank_count)
         self.assertListEqual(observed_output.tolist(), expected_output)
 
     def test_has_high_card(self):
 
-        expected_output = [True, True, True, False, False]
+        expected_output = [True]
 
-        rank_count = np.array([
-            [1,0,1,0,1,0,1,0,1,0,0,0,0], # True
-            [0,1,0,1,0,1,0,1,0,1,0,0,0], # True
-            [1,0,1,0,1,0,1,0,1,0,0,0,0], # False: Is Flush
-            [1,1,1,1,1,1,1,1,1,1,1,1,1], # False: Is straight
-            [1,1,0,0,0,0,0,0,0,0,1,1,1], # False: Is straight flush
-        ])
-        suit_count = np.array([
-            [2,2,1,0], # True
-            [0,0,2,3], # True
-            [5,0,0,0], # False: Is Flush
-            [1,2,2,0], # False: Is straight
-            [0,5,0,0], # False: Is straight flush
-        ])
-
-        observed_output = Balatro(num_simulations=1).has_high_card(rank_count=rank_count, suit_count=suit_count)
+        observed_output = Balatro(num_simulations=1).has_high_card()
         self.assertListEqual(observed_output.tolist(), expected_output)
 
 if __name__ == "__main__":
