@@ -17,11 +17,11 @@ class Balatro:
     RANKS = np.array(["K", "A", "2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q"])
     SUITS = np.array(["C", "H", "S", "D"])
 
-    def __init__(self, num_simulations, num_decks=1, decision_func=None, seed=None, verbose=False):
+    def __init__(self, num_simulations, num_decks=1, strategy=None, seed=None, verbose=False):
         # init
         self.num_simulations = num_simulations
         self.num_decks = num_decks
-        self.decision_func = decision_func # How cards are chosen
+        self.strategy = strategy # How cards are chosen
         self.seed = seed
         self.verbose = verbose
 
@@ -32,7 +32,7 @@ class Balatro:
         # Deck setup
         self.deck = np.arange(52*self.num_decks) % 52
         self.deck_arr = np.asarray(self.deck)
-        self.seen_cards = np.tile(self.deck_arr, (self.num_simulations, 52))
+        self.seen_cards = np.zeros((self.num_simulations, 52))
         self.rank_arr = self.deck_arr % self.NUM_RANKS
         self.suit_arr = self.deck_arr % self.NUM_SUITS
 
@@ -76,27 +76,29 @@ class Balatro:
         """
         Simulates one round of Balatro
         """
-        
-        starting_hand_idx = np.tile(np.arange(self.max_hand_size), (self.num_simulations,1)) # ith row says which card index to grab per simulation. Shape: (num_simulations, self.max_hand_size)
+
         shuffled_deck = self.get_shuffled_deck()
+        starting_hand_idx = np.tile(np.arange(self.max_hand_size), (self.num_simulations,1)) # ith row says which card index to grab per simulation. Shape: (num_simulations, self.max_hand_size)
+        
         total_score = np.zeros(self.num_simulations)
         current_hand = shuffled_deck[np.arange(self.num_simulations)[:,None],starting_hand_idx]
         is_done = np.repeat(False, self.num_simulations)
-        current_hand = 0
+        ith_hand_played = 0
         while ~np.all(is_done):
             if self.verbose:
-                print(f"Hand {current_hand}")
+                print(f"Hand {ith_hand_played}")
                 print(self.print_hand(current_hand, sort=True))
             # 1. evaluate hand whether to play hand or discard
             game_state = self.hand_eval(current_hand)
 
-
             # 2. score or draw cards to restore hand
-            score_arr = self.get_score(current_hand, hand_type=None)
-            total_score += score_arr * game_state["score_hand"].astype(int)
-            current_hand += 1
+            total_score += game_state["score"]
 
-        return total_score
+            # Update for next loop
+            is_done |= game_state["play_hand"]
+            ith_hand_played += 1
+
+        return total_score, game_state["target_poker_hand"]
     
     def print_hand(self, hand_matrix, sort=False):
         """
@@ -126,85 +128,124 @@ class Balatro:
         Args:
             current_hand (np.array): Array of cards in hand. Shape: (num_simulations, self.max_hand_size)
         Returns:
-            game_state (dict):
-                - score_hand (np.array): Bool array if True, hand will play best poker hand available to be score. Otherwise, do not score
-                - cards_kept (list): list of cards kept in hand per simulation. 
-                - poker_hand_estimates (np.array): Array of  
+            game_state (dict): Dict of current game state. See return of self.decision.
+
         """
         # Slicing [:, :, None] compares each element with the arange
         rank_count = ((current_hand[:, :, None] % 13) == np.arange(self.NUM_RANKS)).sum(axis=1) # shape: (num_simulations, NUM_RANKS)
         suit_count = ((current_hand[:, :, None] % 4) == np.arange(self.NUM_SUITS)).sum(axis=1) # shape: (num_simulations, NUM_SUITS)
-        
-        poker_hand = {
-            "Flush Five": self.has_flush_five(rank_count=rank_count, suit_count=suit_count),
-            "Flush House": self.has_flush_house(rank_count=rank_count, suit_count=suit_count),
-            "Five of a Kind": self.has_5_of_a_kind(rank_count=rank_count),
-            "Straight Flush": self.has_straight_flush(rank_count=rank_count, suit_count=suit_count),
-            "Four of a Kind": self.has_4_of_a_kind(rank_count=rank_count),
-            "Full House": self.has_full_house(rank_count=rank_count),
-            "Flush": self.has_flush(suit_count=suit_count),
-            "Straight": self.has_straight(rank_count=rank_count),
-            "Three of a Kind": self.has_3_of_a_kind(rank_count=rank_count),
-            "Two Pair": self.has_two_pair(rank_count=rank_count),
-            "Pair": self.has_2_of_a_kind(rank_count=rank_count),
-            "High Card": self.has_high_card(rank_count=rank_count, suit_count=suit_count)
-        }
+        self.seen_cards[np.arange(self.num_simulations)[:,None], current_hand] += 1
 
-        poker_hand_arr = np.array(list(poker_hand.values()))
-        chosen_poker_hands = self.poker_hands[poker_hand_arr.argmax(axis=0)]
-        game_state = self.decision(current_hand, strategy="one_hand")
+        current_poker_hand_matches = np.vstack([
+            self.has_flush_five(card_count=self.seen_cards),
+            self.has_flush_house(card_count=self.seen_cards),
+            self.has_5_of_a_kind(rank_count=rank_count),
+            self.has_straight_flush(rank_count=rank_count, suit_count=suit_count),
+            self.has_4_of_a_kind(rank_count=rank_count),
+            self.has_full_house(rank_count=rank_count),
+            self.has_flush(suit_count=suit_count),
+            self.has_straight(rank_count=rank_count),
+            self.has_3_of_a_kind(rank_count=rank_count),
+            self.has_two_pair(rank_count=rank_count),
+            self.has_2_of_a_kind(rank_count=rank_count),
+            self.has_high_card(rank_count=rank_count, suit_count=suit_count)
+            ]).T
+        game_state = self.decision(current_hand, current_poker_hand_matches)
         return game_state
 
 
-    def get_score(self, hand, poker_hand):
+    def get_score(self, hand, target_poker_hand):
         """
-        Scores chosen hand and poker_hand
+        Scores chosen hand and target_poker_hand
 
         Args:
             hand (np.array): Array of cards in hand. Shape: (num_simulations, 5)
-            poker_hand (np.array): Array of poker hand str. Shape: (num_simulations,)
+            target_poker_hand (np.array): Array of poker hand str. Shape: (num_simulations,)
         returns:
             score_arr (np.array): Array of int score. Shape: (num_simulations,)
         """
-        if len(hand) != 5:
-            raise ValueError("Received invalid number of cards. Expected 5 cards to score a hand.")
+        # TODO: Add processing to only use the 5 cards of the poker hand
+        # if len(hand) != 5:
+        #     raise ValueError("Received invalid number of cards. Expected 5 cards to score a hand.")
         hand_ranks = hand % 13
-        hand_ranks_face_corrected = np.where(np.logical_or(current_hand % 13 == 0, current_hand % 13 > 10), 10 ,current_hand % 13) # J,Q,K are valued as 10
+        hand_ranks_face_corrected = np.where(np.logical_or(hand % 13 == 0, hand % 13 > 10), 10 ,hand % 13) # J,Q,K are valued as 10
         hand_ranks_ace_corrected = np.where(hand_ranks_face_corrected == 1, 11, hand_ranks_face_corrected) # A are valued as 11
-        hand_rank_sum = hand_ranks.sum()
-        chips, mult = self.chips_mult[poker_hand]
+        hand_rank_sum = hand_ranks.sum(axis=1)
+        chips, mult = np.array([self.chips_mult[poker_hand] for poker_hand in target_poker_hand]).T
         score_arr = (hand_rank_sum + chips) * mult
         return score_arr
 
-    def decision(self, strategy):
+    def decision(self, current_hand, current_poker_hand_matches):
         """
         Function that chooses how to handle cards
 
         Args:
             current_hand (np.array): Array of cards in hand. Shape: (num_simulations, self.max_hand_size)
-            strategy (str): String indicating how to handle cards.
+            current_poker_hand_matches (np.array): Array of bool indicating whether poker hand is available. Shape: (num_simulations, len(self.poker_hands))
         Returns:
-            game_state (dict): Dict of gamestate 
+            game_state (dict): Dict of current gamestate. 
+                - play_hand (np.array): Bool array if True, hand will play best poker hand available to be score. Otherwise, do not score. Shape: (num_simulations,)
+                - score (np.array): Array of int score. Shape: (num_simulations,)
+                - cards_kept (list): list of cards kept in hand per simulation. len = num_simulations
+                - target_poker_hand (np.array): Array of poker hand str deemed as the best target to aim. Shape: (num_simulations,)
+                - current_poker_hand_matches (np.array): Array of bool of current poker hand available. Shape: (num_simulations, len(self.poker_hands))
+                - poker_hand_prob (np.array): Array of probabilities the next hand will be a given poker hand. Shape: (num_simulations, len(self.poker_hands))
         """
-        valid_strategies = ["one_hand", "random"]
+        strategy = self.strategy if self.strategy else "one_hand"
+        valid_strategies = ["one_hand", "random", "greedy", "likelihood", "breadth", "depth", "neural_network"]
         game_state = {}
         
         if strategy == "one_hand":
             # Play only one hand to be scored.
-            score_hand_arr = np.repeat(True, self.num_simulations)
+            play_hand = np.repeat(True, self.num_simulations)
             cards_kept = current_hand
+            target_poker_hand = self.poker_hands[current_poker_hand_matches.argmax(axis=1)]
+            poker_hand_prob = current_poker_hand_matches.astype(float)
 
         elif strategy == "random":
             # No evaluation, randomly pick cards to discard
-            score_hand_arr = np.repeat(False, num_simulations)
+            play_hand = np.repeat(False, num_simulations)
             cards_kept = self.rng.choice(current_hand, size=(self.num_simulations, 5), replace=False, axis=1)
+            target_poker_hand = self.poker_hands[current_poker_hand_matches.argmax(axis=1)]
+            poker_hand_prob = np.zeros((self.num_simulations, len(self.poker_hands)))
+
+        elif strategy == "greedy":
+            # Evaluate which cards to keep based on greedy metrics
+            # Keep cards for most complete poker hands
+            pass
+
+        elif strategy == "likelihood":
+            # Evaluate which cards to keep based on the best expected score
+            # This is gonna be hard to implement
+            pass
+        
+        elif strategy == "breadth":
+            # Evaluate by beadth first search
+            #TODO: Think more about how this can be done
+            pass
+
+        elif strategy == "depth":
+            # Evaluate by depth first search
+            #TODO: Think more about how this can be done
+            pass
+
+        elif strategy == "neural_network":
+            # Evaluation based on decisions from a neural network
+            #TODO: Make an RL neural network
+            pass
 
         else:
             raise ValueError(f"Unrecognized strategy. Expected {valid_strategies} but received strategy")
 
+        score = self.get_score(current_hand, target_poker_hand) * play_hand.astype(int) # zero out score of unplayed hands
+
         game_state = {
-            "score_hand": score_hand_arr,
+            "play_hand": play_hand,
+            "score": score,
             "cards_kept": cards_kept,
+            "target_poker_hand": target_poker_hand,
+            "current_poker_hand_matches": current_poker_hand_matches,
+            "poker_hand_prob": poker_hand_prob,
         }
         return game_state
 
@@ -223,33 +264,31 @@ class Balatro:
         is_n_of_a_kind = (rank_count >= n).any(axis=1)
         return is_n_of_a_kind
 
-    def has_flush_five(self, rank_count, suit_count):
+    def has_flush_five(self, card_count):
         """
-        Checks if array of hands each has a flush house
+        Checks if array of hands each has a flush five
 
         Args:
-            rank_count (np.array): Array of rank counts. Shape: (num_simulations, NUM_RANKS)
-            suit_count (np.array): Array of suit counts. Shape: (num_simulations, NUM_SUITS)
+            card_count (np.array): Array of card counts. Shape: (num_simulations, 52)
         Returns:
-            is_flush_house (np.array): Bool array if each simulation is a flush house. Shape: (num_simulations,)
+            is_flush_five (np.array): Bool array if each simulation is a flush five. Shape: (num_simulations,)
         """
-        is_flush = self.has_flush(suit_count=suit_count)
-        is_5_of_a_kind = self.has_5_of_a_kind(rank_count=rank_count)
-        is_flush_five = is_flush & is_5_of_a_kind
+
+        is_flush_five = (card_count == 5).any(axis=1)
         return is_flush_five
         
-    def has_flush_house(self, rank_count, suit_count):
+    def has_flush_house(self, card_count):
         """
         Checks if array of hands each has a flush house
 
         Args:
-            rank_count (np.array): Array of rank counts. Shape: (num_simulations, NUM_RANKS)
+            card_count (np.array): Array of card counts. Shape: (num_simulations, 52)
         Returns:
             is_flush_house (np.array): Bool array if each simulation is a flush house. Shape: (num_simulations,)
         """
-        is_flush = self.has_flush(suit_count=suit_count)
-        is_full_house = self.has_full_house(rank_count=rank_count)
-        is_flush_house = is_flush & is_full_house
+        is_triple_flush = (card_count >= 3).any(axis=1)
+        is_two_rank_duplicates = (card_count >= 2).sum(axis=1) >= 2 # has two ranks each with duplicates
+        is_flush_house = is_triple_flush & is_two_rank_duplicates
         return is_flush_house
 
     def has_5_of_a_kind(self, rank_count):
@@ -387,10 +426,12 @@ class Balatro:
 
 def main():
 
-    B = Balatro(2, seed=123, verbose=True)
-    B.simulate_one_round()
+    B = Balatro(1_000_000, seed=1234, verbose=True)
+    scores, poker_hands = B.simulate_one_round()
 
-    print()
+    df = pd.DataFrame({"Poker_hand": poker_hands, "Score": scores})
+    df.boxplot(column="Score",by="Poker_hand")
+    plt.show()
 
 
 if __name__ == "__main__":
