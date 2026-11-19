@@ -78,10 +78,10 @@ class Balatro:
         """
 
         shuffled_deck = self.get_shuffled_deck()
-        starting_hand_idx = np.tile(np.arange(self.max_hand_size), (self.num_simulations,1)) # ith row says which card index to grab per simulation. Shape: (num_simulations, self.max_hand_size)
+        current_hand_idx = np.tile(np.arange(self.max_hand_size), (self.num_simulations,1)) # ith row says which card index to grab per simulation. Shape: (num_simulations, self.max_hand_size)
         
         total_score = np.zeros(self.num_simulations)
-        current_hand = shuffled_deck[np.arange(self.num_simulations)[:,None],starting_hand_idx]
+        current_hand = shuffled_deck[np.arange(self.num_simulations)[:,None], current_hand_idx]
         is_done = np.repeat(False, self.num_simulations)
         ith_hand_played = 0
         while ~np.all(is_done):
@@ -89,7 +89,7 @@ class Balatro:
                 print(f"Hand {ith_hand_played}")
                 print(self.print_hand(current_hand, sort=True))
             # 1. evaluate hand whether to play hand or discard
-            game_state = self.hand_eval(current_hand)
+            game_state = self.hand_eval(current_hand, shuffled_deck, current_hand_idx)
 
             # 2. score or draw cards to restore hand
             total_score += game_state["score"]
@@ -121,7 +121,7 @@ class Balatro:
 
         return hands_str
 
-    def hand_eval(self, current_hand, rank_count=None, suit_count=None):
+    def hand_eval(self, current_hand, shuffled_deck, current_hand_idx):
         """
         Evaluate the hand
 
@@ -132,13 +132,14 @@ class Balatro:
 
         """
         # Slicing [:, :, None] compares each element with the arange
-        rank_count = ((current_hand[:, :, None] % 13) == np.arange(self.NUM_RANKS)).sum(axis=1) # shape: (num_simulations, NUM_RANKS)
-        suit_count = ((current_hand[:, :, None] % 4) == np.arange(self.NUM_SUITS)).sum(axis=1) # shape: (num_simulations, NUM_SUITS)
-        self.seen_cards[np.arange(self.num_simulations)[:,None], current_hand] += 1
+        rank_count = self.get_rank_count(current_hand) # shape: (num_simulations, NUM_RANKS)
+        suit_count = self.get_suit_count(current_hand) # shape: (num_simulations, NUM_SUITS)
+        card_count = self.get_count(current_hand, 52) # Shape: (num_simulations, 52)
+        self.seen_cards += card_count
 
         current_poker_hand_matches = np.vstack([
-            self.has_flush_five(card_count=self.seen_cards),
-            self.has_flush_house(card_count=self.seen_cards),
+            self.has_flush_five(card_count=card_count),
+            self.has_flush_house(card_count=card_count),
             self.has_5_of_a_kind(rank_count=rank_count),
             self.has_straight_flush(rank_count=rank_count, suit_count=suit_count),
             self.has_4_of_a_kind(rank_count=rank_count),
@@ -248,6 +249,43 @@ class Balatro:
             "poker_hand_prob": poker_hand_prob,
         }
         return game_state
+
+    def get_count(self, arr, n):
+        """
+        Gets the the suit or rank count per row 
+
+        Args:
+            arr (np.array): 2D Array to get the count. Shape: (num_simulations, n)
+            n (int): modulo number. 13 for rank, 4 for suit
+        Returns:
+            count_arr (np.array):
+        """
+        count_arr = ((arr[:, :, None] % n) == np.arange(n)).sum(axis=1)
+        return count_arr
+    
+    def get_rank_count(arr):
+        """
+        Gets the the rank count per row 
+
+        Args:
+            arr (np.array): 2D Array to get the count. Shape: (num_simulations, 13)
+        Returns:
+            rank_count (np.array):
+        """
+        rank_count = self.get_count(arr, self.NUM_RANKS)
+        return rank_count
+
+    def get_suit_count(arr):
+        """
+        Gets the the suit count per row 
+
+        Args:
+            arr (np.array): 2D Array to get the count. Shape: (num_simulations, 4)
+        Returns:
+            suit_count (np.array):
+        """
+        suit_count = self.get_count(arr, self.NUM_SUITS)
+        return suit_count
 
     def has_n_of_a_kind(self, rank_count, n):
         """
