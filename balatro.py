@@ -9,7 +9,6 @@ from copy import deepcopy
 from collections import Counter
 
 import time
-from timer import time_methods
 
 
 class Balatro:
@@ -141,6 +140,8 @@ class Balatro:
         Returns:
             is_n_of_a_kind (np.array): Bool array if each simulation is a n-of-a-kind. Shape: (num_simulations,)
         """
+        if n < 1:
+            raise ValueError(f"n must be a positive integer. Received {n}")
         is_n_of_a_kind = (rank_count >= n).any(axis=1)
 
         return is_n_of_a_kind
