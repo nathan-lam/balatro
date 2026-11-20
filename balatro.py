@@ -3,7 +3,7 @@ from scipy.special import comb, factorial
 from scipy.stats import hypergeom
 import matplotlib.pyplot as plt
 import pandas as pd
-import itertools
+from itertools import combinations
 from copy import deepcopy
 from collections import Counter
 
@@ -40,6 +40,8 @@ class Balatro:
         self.max_hand_size = 8
         self.max_num_hands = 4
         self.max_num_discards = 3
+        self.num_hands_discards_left = np.tile(np.array([self.max_num_hands, self.max_num_discards]), (self.num_simulations,1))
+        self.gold = 3
         self.chips_mult = { # (chip, mult)
             "Flush Five": [160, 16],
             "Flush House": [140, 14],
@@ -79,9 +81,9 @@ class Balatro:
 
         shuffled_deck = self.get_shuffled_deck()
         current_hand_idx = np.tile(np.arange(self.max_hand_size), (self.num_simulations,1)) # ith row says which card index to grab per simulation. Shape: (num_simulations, self.max_hand_size)
-        
-        total_score = np.zeros(self.num_simulations)
         current_hand = shuffled_deck[np.arange(self.num_simulations)[:,None], current_hand_idx]
+
+        total_score = np.zeros(self.num_simulations)
         is_done = np.repeat(False, self.num_simulations)
         ith_hand_played = 0
         while ~np.all(is_done):
@@ -95,6 +97,8 @@ class Balatro:
             total_score += game_state["score"]
 
             # Update for next loop
+            self.num_hands_discards_left[:, 0] -= game_state["play_hand"].astype(int)
+            self.num_hands_discards_left[:, 1] -= ~game_state["play_hand"].astype(int)
             is_done |= game_state["play_hand"]
             ith_hand_played += 1
 
@@ -109,10 +113,10 @@ class Balatro:
         Returns:
             hands_str (np.array): Array of str. Size: (num_simulations, self.max_hand_size)
         """
-        idx_of_ranks_in_hand = hand_matrix % 13
+        idx_of_ranks_in_hand = hand_matrix % self.NUM_RANKS
         ranks_in_hand = self.RANKS[idx_of_ranks_in_hand]
 
-        idx_of_suits_in_hand = hand_matrix % 4
+        idx_of_suits_in_hand = hand_matrix % self.NUM_SUITS
         suits_in_hand = self.SUITS[idx_of_suits_in_hand]
         
         hands_str = np.char.add(ranks_in_hand, suits_in_hand)
@@ -123,7 +127,7 @@ class Balatro:
 
     def hand_eval(self, current_hand, shuffled_deck, current_hand_idx):
         """
-        Evaluate the hand
+        Evaluate the hand to get the target poker hand and cards to keep
 
         Args:
             current_hand (np.array): Array of cards in hand. Shape: (num_simulations, self.max_hand_size)
@@ -166,10 +170,10 @@ class Balatro:
             score_arr (np.array): Array of int score. Shape: (num_simulations,)
         """
         # TODO: Add processing to only use the 5 cards of the poker hand
-        # if len(hand) != 5:
-        #     raise ValueError("Received invalid number of cards. Expected 5 cards to score a hand.")
-        hand_ranks = hand % 13
-        hand_ranks_face_corrected = np.where(np.logical_or(hand % 13 == 0, hand % 13 > 10), 10 ,hand % 13) # J,Q,K are valued as 10
+        # if len(hand) > 5:
+        #     raise ValueError("Received invalid number of cards. Expected at most 5 cards to score a hand.")
+        hand_ranks = hand % self.NUM_RANKS
+        hand_ranks_face_corrected = np.where(np.logical_or(hand % self.NUM_RANKS == 0, hand % self.NUM_RANKS > 10), 10 ,hand % self.NUM_RANKS) # J,Q,K are valued as 10
         hand_ranks_ace_corrected = np.where(hand_ranks_face_corrected == 1, 11, hand_ranks_face_corrected) # A are valued as 11
         hand_rank_sum = hand_ranks.sum(axis=1)
         chips, mult = np.array([self.chips_mult[poker_hand] for poker_hand in target_poker_hand]).T
@@ -205,8 +209,10 @@ class Balatro:
 
         elif strategy == "random":
             # No evaluation, randomly pick cards to discard
-            play_hand = np.repeat(False, num_simulations)
-            cards_kept = self.rng.choice(current_hand, size=(self.num_simulations, 5), replace=False, axis=1)
+            play_hand = np.repeat(False, self.num_simulations)
+            num_cards_to_keep = 5
+            cards_to_keep_idx = np.argpartition(self.rng.random(current_hand.shape), kth=num_cards_to_keep-1, axis=1)[:, :num_cards_to_keep]
+            cards_kept = current_hand[np.arange(self.num_simulations)[:,None], cards_to_keep_idx]
             target_poker_hand = self.poker_hands[current_poker_hand_matches.argmax(axis=1)]
             poker_hand_prob = np.zeros((self.num_simulations, len(self.poker_hands)))
 
@@ -263,7 +269,7 @@ class Balatro:
         count_arr = ((arr[:, :, None] % n) == np.arange(n)).sum(axis=1)
         return count_arr
     
-    def get_rank_count(arr):
+    def get_rank_count(self, arr):
         """
         Gets the the rank count per row 
 
@@ -275,7 +281,7 @@ class Balatro:
         rank_count = self.get_count(arr, self.NUM_RANKS)
         return rank_count
 
-    def get_suit_count(arr):
+    def get_suit_count(self, arr):
         """
         Gets the the suit count per row 
 
@@ -464,7 +470,7 @@ class Balatro:
 
 def main():
 
-    B = Balatro(1_000_000, seed=1234, verbose=True)
+    B = Balatro(10, strategy="random", seed=1234, verbose=True)
     scores, poker_hands = B.simulate_one_round()
 
     df = pd.DataFrame({"Poker_hand": poker_hands, "Score": scores})

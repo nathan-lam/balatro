@@ -1,5 +1,9 @@
 
 import numpy as np
+import os
+print(os.listdir())
+print(os.getcwd())
+
 
 from balatro import Balatro
 from generate_hands import Generate_hands

@@ -3,6 +3,7 @@
 
 Personal repo to run simulations based on the game Balatro.
 
+This is for coding practice, so most of this was not vibe coded, but I do occasionally ask an LLM for conceptual help.
 
 # Goals
 

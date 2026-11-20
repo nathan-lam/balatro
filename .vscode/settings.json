@@ -1,0 +1,12 @@
+{
+  "python.defaultInterpreterPath": "/home/user_name/miniconda3/envs/py314/bin/python",
+  "terminal.integrated.env.linux": {
+    "PYTHONPATH": "${workspaceFolder}"
+  },
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}"
+  ],
+  "python.testing.pytestArgs": [
+    "tests"
+  ]
+}
